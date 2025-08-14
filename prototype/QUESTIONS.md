@@ -1,0 +1,2 @@
+1. basically , you are saying , when we enter any thing in terminal , it stores in kernal line buffer or terminal line buffer and when we press enter or crtl+d then it gives the data present in buffer to the particular program . is i am correct , give answer in short?
+  - Exactly, in canonical mode, the terminal (in the kernel) keeps your typed characters in its line buffer, and only delivers them to the program when you press Enter (newline) or Ctrl+D (EOF).
