@@ -11,6 +11,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <time.h>
+#include <stdbool.h>
 
 #ifndef FD_SETSIZE
 #define FD_SETSIZE 1024
@@ -103,11 +104,12 @@ from host byte order to network byte order. Network byte order is big-endian.
     return fd;
     }
 
+
 int main(int argc, char* argv[])
     {
     //if port is not given through command line
     if (argc != 2) {
-        fprintf(stderr, "%sUsage : %s <port>%s\n",FG_RED, argv[0],RESET);
+        fprintf(stderr, "%sUsage : %s <port>%s\n", FG_RED, argv[0], RESET);
         return 2;
         }
 
@@ -119,12 +121,26 @@ int main(int argc, char* argv[])
     time_t connect_t;
     time_t disconnect_t;
 
+    //Run server in debug mode 
+    unsigned short int input;
+    while (1)
+        {
+        printf("Run server in Debug mode [0- No 1- Normal Debug 2- Advance Debug]:\t");
+        scanf("%d", &input);
+        if (input > 2) {
+            fprintf(stderr, "[%sError%s] : Invalid option\n", FG_RED, RESET);
+            continue;
+            }
+        break;
+        }
+
+
     //initalize the client array with -1 
     for (int i = 0;i < FD_SETSIZE;i++) {
         clinets[i] = -1;
         }
-    printf("%sListening to port %u (fd=%d)\n%s",FG_BGREEN, (unsigned)port, listen_fd ,RESET);
-//event loop
+    printf("%sListening to port %u (fd=%d)\n%s", FG_BGREEN, (unsigned)port, listen_fd, RESET);
+    //event loop
     while (1) {
         //sets the file descriptors in fd_set
         fd_set  rfds;
@@ -153,8 +169,8 @@ int main(int argc, char* argv[])
         if (ready == -1) {
             if (errno == EINTR) {
                 continue;
-            }
-        fprintf(stderr, "[%sError%s]", FG_BRED, RESET);
+                }
+            fprintf(stderr, "[%sError%s]", FG_BRED, RESET);
             perror("select");
             break;
             }
@@ -162,13 +178,13 @@ int main(int argc, char* argv[])
             puts("[Timeout]");
             continue;
             }
-        
+
         //new connction ,when a new client wants to connects
 /*FD_ISSET: Checks if a specific file descriptor is present (set) in an fd_set.
 This condition checks if the listen_fd is set in rfds,
 meaning a new connection is available.*/
-        
-        //why we used FD_ISSET(listen_fd, &rfds) check QUESTION.md
+
+//why we used FD_ISSET(listen_fd, &rfds) check QUESTION.md
         if (FD_ISSET(listen_fd, &rfds)) {
             struct sockaddr_in cli;
             socklen_t len = sizeof(cli);
@@ -176,14 +192,14 @@ meaning a new connection is available.*/
             //checks multiple fd at same time and marks then the fd which are ready to read 
             //accept creates the new socket(new conncetion) for data transfer 
             int cli_fd = accept(listen_fd, (struct sockaddr*)&cli, &len);
-            if (cli_fd>=0)
+            if (cli_fd >= 0)
                 {
                 connect_t = time(NULL);
-                printf("[%sClient Conected%s] %-20s",FG_GREEN,RESET,ctime(&connect_t));
+                printf("\n[%sClient Conected%s] %-20s", FG_GREEN, RESET, ctime(&connect_t));
 
                 char ip[INET_ADDRSTRLEN];
                 inet_ntop(AF_INET, &cli.sin_addr, ip, sizeof(ip));
-                printf("%sAccepted fd = %d from %s : %d%s\n",FG_BYELLOW, cli_fd, ip, ntohs(cli.sin_port),RESET);
+                printf("%sAccepted fd = %d from %s : %d%s\n", FG_BYELLOW, cli_fd, ip, ntohs(cli.sin_port), RESET);
                 //add clients
                 int placed = 0;
                 for (int i = 0; i < FD_SETSIZE;i++) {
@@ -196,7 +212,7 @@ meaning a new connection is available.*/
 
                 //if max client limit reached
                 if (!placed) {
-                    fprintf(stderr, "%sToo many clients; closing fd=%d%s",FG_RED, cli_fd,RESET);
+                    fprintf(stderr, "%sToo many clients; closing fd=%d%s", FG_RED, cli_fd, RESET);
                     close(cli_fd);
                     }
                 //EINTR means , sys call interrupted by signal
@@ -217,42 +233,44 @@ meaning a new connection is available.*/
                 continue;
                 }
             // In your read section, add detailed debugging:
-char buf[4096];
-ssize_t n = read(fd, buf, sizeof(buf));
+            char buf[4096];
+            ssize_t n = read(fd, buf, sizeof(buf));
 
-printf("%s=== READ DEBUG ===%s\n", FG_CYAN, RESET);
-printf("Read returned: %zd bytes\n", n);
-printf("errno: %d (%s)\n", errno, strerror(errno));
+            //debug code , tells actually what we are recived from client in hexhump format
+            if(input ==1)
+                {
+                printf("%sREaded %d bytes  | from fd=%d%s\n ", FG_BBLUE, n, fd, RESET);
+                fwrite(buf, 1, n, stdout);
+                }
+            
+            else if (input == 2) {
+                printf("%s=== READ DEBUG ===%s\n", FG_CYAN, RESET);
+                printf("Read returned: %zd bytes\n", n);
+                printf("errno: %d (%s)\n", errno, strerror(errno));
 
-if (n > 0) {
-    printf("Raw data (%zd bytes):\n", n);
-    
-    // Show each byte in hex + char
-    for (ssize_t i = 0; i < n; i++) {
-        unsigned char c = (unsigned char)buf[i];
-        printf("%02x ", c);
-        if ((i + 1) % 16 == 0 || i == n - 1) {
-            // Pad and show characters
-            for (ssize_t j = (i/16)*16; j <= i; j++) {
-                unsigned char ch = (unsigned char)buf[j];
-                printf("%c", (ch >= 32 && ch <= 126) ? ch : '.');
-            }
-            printf("\n");
-        }
-    }
-    
-    printf("String representation:\n");
-    fwrite(buf, 1, n, stdout);
-    printf("\n%s=== END DEBUG ===%s\n\n", FG_CYAN, RESET);
-}
-            // char buf[4096];
-            // ssize_t n = read(fd, buf, sizeof(buf));
-            // buf[n] = '\0';
-            // printf("%sREaded:%s\n ", FG_BBLUE, RESET);
-            // fwrite(buf, 1, n, stdout);
-            // for (int i = 0;i < n;i++) {
-            //     printf("%c", buf[i]);
-            //     }
+                if (n > 0) {
+                    printf("Raw data (%zd bytes):\n", n);
+
+                    // Show each byte in hex + char
+                    for (ssize_t i = 0; i < n; i++) {
+                        unsigned char c = (unsigned char)buf[i];
+                        printf("%02x ", c);
+                        if ((i + 1) % 16 == 0 || i == n - 1) {
+                            // Pad and show characters
+                            for (ssize_t j = (i / 16) * 16; j <= i; j++) {
+                                unsigned char ch = (unsigned char)buf[j];
+                                printf("%c", (ch >= 32 && ch <= 126) ? ch : '.');
+                                }
+                            printf("\n");
+                            }
+                        }
+                    printf("String representation:\n");
+                    fwrite(buf, 1, n, stdout);
+                    printf("\n%s=== END DEBUG ===%s\n\n", FG_CYAN, RESET);
+                    }
+                }
+
+
             if (n <= 0) {
                 if (n < 0) {
                     fprintf(stderr, "[%sError%s]", FG_BRED, RESET);
@@ -260,21 +278,23 @@ if (n > 0) {
                     }
                 else {
                     disconnect_t = time(NULL);
-                    printf("[%sClinet Disconnected%s] %s",FG_RED,RESET, ctime(&disconnect_t));
+                    printf("\n[%sClinet Disconnected%s] %s", FG_RED, RESET, ctime(&disconnect_t));
                     }
                 close(fd);
-                    clinets[i] = -1;
+                clinets[i] = -1;
                 continue;
                 }
 
             //echo write back
+            write(fd, FG_BYELLOW, (size_t)sizeof(FG_BYELLOW));
             ssize_t m = write(fd, buf, (size_t)n);
+            write(fd, RESET, (size_t)sizeof(RESET));
             if (m < 0) {
-        fprintf(stderr, "[%sError%s]", FG_BRED, RESET);
+                fprintf(stderr, "[%sError%s]", FG_BRED, RESET);
                 perror("Write");
                 close(fd);
                 disconnect_t = time(NULL);
-                printf("[%sClinet Disconnected%s] %s",FG_RED,RESET, ctime(&disconnect_t));
+                printf("\n[%sClinet Disconnected%s] %s", FG_RED, RESET, ctime(&disconnect_t));
                 clinets[i] = -1;
                 }
             }
