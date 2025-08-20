@@ -88,6 +88,12 @@ if (bytes == -1 && errno == EAGAIN) {
    - Use `O_NONBLOCK` and handle `EAGAIN`/`EWOULDBLOCK`.
 2. **Asynchronous I/O:**
    - Use `aio_read()`, `iocp`, or similar APIs.
+   - my thinking 
+   ```
+   in this solution , for example , if a program wants to  read a file . if it does I/O operation from disk 
+   ,then the control is returned to the program immediately,before the I/O operation complete from the disk,
+   it prevent the program from blocking(if not used then , program gets blocked till, I/O operation completes)
+   ```
 3. **Event Multiplexing:**
    - Use `select()`, `poll()`, or `epoll()` to monitor multiple sockets.
 4. **Offload to Threads/Processes:**
