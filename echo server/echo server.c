@@ -121,6 +121,11 @@ int main(int argc, char* argv[])
     time_t connect_t;
     time_t disconnect_t;
 
+    //storing client data in a file 
+    int cli_files[FD_SETSIZE];
+    FILE* f_ptr[FD_SETSIZE];
+    int file_count = 0;
+
     //Run server in debug mode 
     unsigned short int input;
     while (1)
@@ -135,9 +140,11 @@ int main(int argc, char* argv[])
         }
 
 
+
     //initalize the client array with -1 
     for (int i = 0;i < FD_SETSIZE;i++) {
         clinets[i] = -1;
+        cli_files[i] = -1;
         }
     printf("%sListening to port %u (fd=%d)\n%s", FG_BGREEN, (unsigned)port, listen_fd, RESET);
     //event loop
@@ -206,6 +213,10 @@ meaning a new connection is available.*/
                     if (clinets[i] == -1) {
                         clinets[i] = cli_fd;
                         placed = 1;
+                        cli_files[i] = cli_fd;
+                        char addr_buf[30];
+                        snprintf(addr_buf, sizeof(addr_buf), "client_files/cli_%d.txt", file_count++);
+                        f_ptr[i] = fopen(addr_buf, "w");
                         break;
                         }
                     }
@@ -226,6 +237,7 @@ meaning a new connection is available.*/
 
         for (int i = 0;i < FD_SETSIZE;i++) {
             int fd = clinets[i];
+            int file_number = i;
             if (fd == -1) {
                 continue;
                 }
@@ -237,12 +249,12 @@ meaning a new connection is available.*/
             ssize_t n = read(fd, buf, sizeof(buf));
 
             //debug code , tells actually what we are recived from client in hexhump format
-            if(input ==1)
+            if (input == 1)
                 {
                 printf("%sREaded %d bytes  | from fd=%d%s\n ", FG_BBLUE, n, fd, RESET);
                 fwrite(buf, 1, n, stdout);
                 }
-            
+
             else if (input == 2) {
                 printf("%s=== READ DEBUG ===%s\n", FG_CYAN, RESET);
                 printf("Read returned: %zd bytes\n", n);
@@ -282,11 +294,21 @@ meaning a new connection is available.*/
                     }
                 close(fd);
                 clinets[i] = -1;
+                cli_files[i] = -1;
+                fclose(f_ptr[i]);
                 continue;
                 }
 
             //echo write back
             write(fd, FG_BYELLOW, (size_t)sizeof(FG_BYELLOW));
+
+            // to write in a file 
+            if (n > 0 && n < (ssize_t)sizeof(buf)) {
+                buf[n] = '\0';  // Add null terminator
+                }
+            fprintf(f_ptr[file_number], "%s", buf);
+            //  can also use  fwrite(buf, 1, n, f_ptr[file_number]);
+
             ssize_t m = write(fd, buf, (size_t)n);
             write(fd, RESET, (size_t)sizeof(RESET));
             if (m < 0) {
