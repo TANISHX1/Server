@@ -1,0 +1,2 @@
+# server
+it is a TCP based server which connects to clients . it works within the same machine, means server and clients . both should run within the same machine. it used ```select()``` for multiplexing.
