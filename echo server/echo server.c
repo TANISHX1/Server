@@ -1,17 +1,5 @@
-#define _POSIX_C_SOURCE 200809L
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <sys/select.h>
-#include <sys/time.h>
-#include <string.h>
-#include <errno.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <time.h>
-#include <stdbool.h>
+
+#include "header.h"
 
 #ifndef FD_SETSIZE
 #define FD_SETSIZE 1024
@@ -39,6 +27,9 @@
 #define FG_BMAGENTA "\033[95m"
 #define FG_BCYAN    "\033[96m"
 #define FG_BWHITE   "\033[97m"
+
+
+
 
 //create a TCP socket , 
 static int make_listen_socket(uint16_t port)
@@ -116,22 +107,24 @@ int main(int argc, char* argv[])
     uint16_t port = (uint16_t)atoi(argv[1]);
     int listen_fd = make_listen_socket(port);
     int clinets[FD_SETSIZE];
-
+    
     //client time 
     time_t connect_t;
     time_t disconnect_t;
-
+    
     //storing client data in a file 
     int cli_files[FD_SETSIZE];
     FILE* f_ptr[FD_SETSIZE];
     int file_count = 0;
+
 
     //Run server in debug mode 
     unsigned short int input;
     while (1)
         {
         printf("Run server in Debug mode [0- No 1- Normal Debug 2- Advance Debug]:\t");
-        scanf("%d", &input);
+        // %hu :- is a format specifier used for unsign short int  | %hd :- for sign short int 
+        scanf("%hu", &input);
         if (input > 2) {
             fprintf(stderr, "[%sError%s] : Invalid option\n", FG_RED, RESET);
             continue;
@@ -215,7 +208,14 @@ meaning a new connection is available.*/
                         placed = 1;
                         cli_files[i] = cli_fd;
                         char addr_buf[30];
-                        snprintf(addr_buf, sizeof(addr_buf), "client_files/cli_%d.txt", file_count++);
+                        snprintf(addr_buf, sizeof(addr_buf), "client_files/%s", ip);
+                        char*cli_directory_path = strdup(addr_buf);
+                        if (create_directory(addr_buf) == -1)
+                            {
+                            exit(-1);
+                            }
+                        snprintf(addr_buf, sizeof(addr_buf), "%s/cli_%d.txt", cli_directory_path, file_count++);
+                        free(cli_directory_path);
                         f_ptr[i] = fopen(addr_buf, "w");
                         break;
                         }
@@ -251,7 +251,8 @@ meaning a new connection is available.*/
             //debug code , tells actually what we are recived from client in hexhump format
             if (input == 1)
                 {
-                printf("%sREaded %d bytes  | from fd=%d%s\n ", FG_BBLUE, n, fd, RESET);
+                // %zd :- format specifer  for ssize_t
+                printf("%sREaded %zd bytes  | from fd=%d%s\n ", FG_BBLUE, n, fd, RESET);
                 fwrite(buf, 1, n, stdout);
                 }
 
@@ -302,12 +303,12 @@ meaning a new connection is available.*/
             //echo write back
             write(fd, FG_BYELLOW, (size_t)sizeof(FG_BYELLOW));
 
-            // to write in a file 
+            
             if (n > 0 && n < (ssize_t)sizeof(buf)) {
                 buf[n] = '\0';  // Add null terminator
-                }
-            fprintf(f_ptr[file_number], "%s", buf);
-            //  can also use  fwrite(buf, 1, n, f_ptr[file_number]);
+            }
+            fprintf(f_ptr[file_number],"%s", buf);
+            // fwrite(buf, 1, n, f_ptr[file_number]);
 
             ssize_t m = write(fd, buf, (size_t)n);
             write(fd, RESET, (size_t)sizeof(RESET));
