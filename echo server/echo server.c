@@ -5,29 +5,6 @@
 #define FD_SETSIZE 1024
 #endif 
 
-//macros for styling 
-#define RESET       "\033[0m"
-#define BOLD        "\033[1m"
-
-#define FG_BLACK    "\033[30m"
-#define FG_RED      "\033[31m"
-#define FG_GREEN    "\033[32m"
-#define FG_YELLOW   "\033[33m"
-#define FG_BLUE     "\033[34m"
-#define FG_MAGENTA  "\033[35m"
-#define FG_CYAN     "\033[36m"
-#define FG_WHITE    "\033[37m"
-
-// Bright foreground colors
-#define FG_BBLACK   "\033[90m"
-#define FG_BRED     "\033[91m"
-#define FG_BGREEN   "\033[92m"
-#define FG_BYELLOW  "\033[93m"
-#define FG_BBLUE    "\033[94m"
-#define FG_BMAGENTA "\033[95m"
-#define FG_BCYAN    "\033[96m"
-#define FG_BWHITE   "\033[97m"
-
 
 
 
@@ -107,12 +84,13 @@ int main(int argc, char* argv[])
     uint16_t port = (uint16_t)atoi(argv[1]);
     int listen_fd = make_listen_socket(port);
     int clinets[FD_SETSIZE];
-    
+
     //client time 
     time_t connect_t;
     time_t disconnect_t;
-    
+
     //storing client data in a file 
+    srand(time(NULL));
     int cli_files[FD_SETSIZE];
     FILE* f_ptr[FD_SETSIZE];
     int file_count = 0;
@@ -132,7 +110,11 @@ int main(int argc, char* argv[])
         break;
         }
 
-
+    // initilize server with name 
+    char meta_d_Buffer[META_BUFFER_SIZE];
+    printf("Enter Server Name : ");
+    fflush(stdout);
+    scanf("%19s", &meta_d_Buffer);
 
     //initalize the client array with -1 
     for (int i = 0;i < FD_SETSIZE;i++) {
@@ -201,15 +183,42 @@ meaning a new connection is available.*/
                 inet_ntop(AF_INET, &cli.sin_addr, ip, sizeof(ip));
                 printf("%sAccepted fd = %d from %s : %d%s\n", FG_BYELLOW, cli_fd, ip, ntohs(cli.sin_port), RESET);
                 //add clients
+                // if we have to send or to do task when , client is just connected. review this section
                 int placed = 0;
                 for (int i = 0; i < FD_SETSIZE;i++) {
                     if (clinets[i] == -1) {
                         clinets[i] = cli_fd;
                         placed = 1;
                         cli_files[i] = cli_fd;
+
+                        // send and recieve meta data or client
+                        client_info* client_info_t = (client_info*)malloc(sizeof(client_info));
                         char addr_buf[30];
+                        ssize_t n;
+                        if ((n = recv(cli_fd, addr_buf, sizeof(addr_buf), 0)) > 0)
+                            {
+                            addr_buf[n] = '\0';
+                            client_info_t->cli_name = strdup(addr_buf);
+                            printf("Client_name:%s\n", client_info_t->cli_name);
+                            // fflush(stdout);
+                            }
+                        else {
+                            fprintf(stderr, "Meta Data 'recv' Failed [fd=%d]:", cli_fd);
+                            }
+
+                        // send server name , send a random number to pick a color
+                        random_int();
+                        char color_code = '0' + random_int();
+                        if (!(combine_msg(meta_d_Buffer, &color_code))) {
+                            fprintf(stderr, "[%sError%s] | Combine_string_\n", FG_RED, RESET);
+                            }
+                        if (send(cli_fd, meta_d_Buffer, strlen(meta_d_Buffer), 0) < 0) {
+                            fprintf(stderr, "[%sError%s] | Meta Data 'send' Failed [To fd=%d]:", FG_RED, RESET,cli_fd);
+                            }
+
+
                         snprintf(addr_buf, sizeof(addr_buf), "client_files/%s", ip);
-                        char*cli_directory_path = strdup(addr_buf);
+                        char* cli_directory_path = strdup(addr_buf);
                         if (create_directory(addr_buf) == -1)
                             {
                             exit(-1);
@@ -300,18 +309,14 @@ meaning a new connection is available.*/
                 continue;
                 }
 
-            //echo write back
-            write(fd, FG_BYELLOW, (size_t)sizeof(FG_BYELLOW));
-
-            
+            //echo write back 
             if (n > 0 && n < (ssize_t)sizeof(buf)) {
                 buf[n] = '\0';  // Add null terminator
-            }
-            fprintf(f_ptr[file_number],"%s", buf);
+                }
+            fprintf(f_ptr[file_number], "%s", buf);
             // fwrite(buf, 1, n, f_ptr[file_number]);
-
             ssize_t m = write(fd, buf, (size_t)n);
-            write(fd, RESET, (size_t)sizeof(RESET));
+
             if (m < 0) {
                 fprintf(stderr, "[%sError%s]", FG_BRED, RESET);
                 perror("Write");
