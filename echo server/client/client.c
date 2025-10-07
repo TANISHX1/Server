@@ -3,8 +3,17 @@
 
 int main(int argc, char* argv[])
     {
-    if (argc != 3) {
-        fprintf(stderr, "%s%sUsage:%s <server_ip> <port>%s\n", ITALIC, FG_RED, argv[0], RESET);
+    bool debug = false;
+    if (argc == 4) {
+        debug = !(strcmp(argv[3], "-D")) ? true : false;
+        if (!debug) {
+            puts("Invalid debug_option");
+            return 1;
+            }
+        }
+    else if (argc != 3 ) {
+
+        fprintf(stderr, "%s%sUsage:%s <server_ip> <port> <debug_mode> (optional)%s\n", ITALIC, FG_RED, argv[0], RESET);
         return 1;
         }
     const char* server_ip = argv[1];
@@ -56,21 +65,23 @@ int main(int argc, char* argv[])
         buffer[n_byte] = '\0';
 
         break_meta_d(&client_info_t, buffer);
-        printf("Recieved :%s\n", client_info_t->server_name);
-        printf("Recieved :%sxxxxx%s\n", client_info_t->cli_display_color, RESET);
+  
+            printf("Recieved :%s\n", client_info_t->server_name);
+            printf("Recieved :%sxxxxx%s\n", client_info_t->cli_display_color, RESET);
+            
         }
     else {
         perror("Recv Meta Data :");
         return 1;
         }
 
-        
+
 
 
     printf("Connected to server [ IP= %s%s%s ] [ Port= %s%d%s ]\n", FG_GREEN, server_ip, RESET, FG_GREEN, port, RESET);
 
     // Meta data of client
-    printf("%s\n\t\t Meta Data Of Client Sended to the server%s\n\n", BOLD, RESET);
+    printf("%s%s\n\t\t Meta Data Of Client Sended to the server%s\n\n",FG_BBLUE, BOLD, RESET);
     printf("Server Name: %s\n", client_info_t->server_name);
     printf("Client Name: %s\n", client_info_t->client_name);
     // printf("MAC Address: %s\n");
@@ -112,7 +123,9 @@ int main(int argc, char* argv[])
                 break;
                 }
 
-            printf("Sent :%zd bytes\n", send_newline ? nread + 1 : nread);
+            if (debug) {
+                printf("Sent :%zd bytes\n", send_newline ? nread + 1 : nread);
+                }
             }
         free(line);
 
@@ -121,7 +134,9 @@ int main(int argc, char* argv[])
         ssize_t recv_size = recv(sock, buffer_recv, sizeof(buffer_recv) - 1, 0);
         if (recv_size > 0) {
             buffer_recv[recv_size] = '\0';
-            printf("Recieved :%zd bytes\n", recv_size);
+            if (debug) {
+                printf("Recieved :%zd bytes\n", recv_size);
+                }
             printf("%s\n", buffer_recv);
             }
         else if (recv_size == 0) {
