@@ -105,6 +105,7 @@ int create_directory(const char* path)
 typedef struct client_info {
     char* cli_name;
     char* MAC;
+    int cli_id;
     }client_info;
 
     // random number generator
@@ -133,4 +134,19 @@ it is apppending the color code of , when each time clinet connect. fix this
     return false;
     }
 
-// write a code to free the client info when disconnect
+// refresh the buffer [erase info except server name]
+void meta_buffer_refresh(char* buffer, int len)
+    {
+    buffer[len] = '\0';
+    }
+
+    // free the client info when client disconnects
+void close_client(void* cli_,int debug)
+    {
+    client_info* clinet = (client_info*)cli_;
+    close(clinet->cli_id);
+    free(clinet->cli_name);
+    free(clinet);
+    debug ==3 ? puts("freed clinet info "):(puts(""));
+    }
+
