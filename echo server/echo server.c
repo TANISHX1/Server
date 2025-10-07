@@ -112,9 +112,12 @@ int main(int argc, char* argv[])
 
     // initilize server with name 
     char meta_d_Buffer[META_BUFFER_SIZE];
+    void* clinet_struct[FD_SETSIZE];
+    int s_name_len;
     printf("Enter Server Name : ");
     fflush(stdout);
     scanf("%19s", &meta_d_Buffer);
+    s_name_len = strlen(meta_d_Buffer);
 
     //initalize the client array with -1 
     for (int i = 0;i < FD_SETSIZE;i++) {
@@ -193,6 +196,7 @@ meaning a new connection is available.*/
 
                         // send and recieve meta data or client
                         client_info* client_info_t = (client_info*)malloc(sizeof(client_info));
+                        clinet_struct[cli_fd] = client_info_t;
                         char addr_buf[30];
                         ssize_t n;
                         if ((n = recv(cli_fd, addr_buf, sizeof(addr_buf), 0)) > 0)
@@ -213,9 +217,9 @@ meaning a new connection is available.*/
                             fprintf(stderr, "[%sError%s] | Combine_string_\n", FG_RED, RESET);
                             }
                         if (send(cli_fd, meta_d_Buffer, strlen(meta_d_Buffer), 0) < 0) {
-                            fprintf(stderr, "[%sError%s] | Meta Data 'send' Failed [To fd=%d]:", FG_RED, RESET,cli_fd);
+                            fprintf(stderr, "[%sError%s] | Meta Data 'send' Failed [To fd=%d]:", FG_RED, RESET, cli_fd);
                             }
-
+                        meta_buffer_refresh(meta_d_Buffer, s_name_len);
 
                         snprintf(addr_buf, sizeof(addr_buf), "client_files/%s", ip);
                         char* cli_directory_path = strdup(addr_buf);
@@ -233,7 +237,7 @@ meaning a new connection is available.*/
                 //if max client limit reached
                 if (!placed) {
                     fprintf(stderr, "%sToo many clients; closing fd=%d%s", FG_RED, cli_fd, RESET);
-                    close(cli_fd);
+                    close_client(clinet_struct[cli_fd], input);
                     }
                 //EINTR means , sys call interrupted by signal
                 else if (errno != EINTR)
@@ -302,7 +306,8 @@ meaning a new connection is available.*/
                     disconnect_t = time(NULL);
                     printf("\n[%sClinet Disconnected%s] %s", FG_RED, RESET, ctime(&disconnect_t));
                     }
-                close(fd);
+                close_client(clinet_struct[fd], input);
+
                 clinets[i] = -1;
                 cli_files[i] = -1;
                 fclose(f_ptr[i]);
@@ -320,7 +325,8 @@ meaning a new connection is available.*/
             if (m < 0) {
                 fprintf(stderr, "[%sError%s]", FG_BRED, RESET);
                 perror("Write");
-                close(fd);
+                close_client(clinet_struct[fd], input);
+
                 disconnect_t = time(NULL);
                 printf("\n[%sClinet Disconnected%s] %s", FG_RED, RESET, ctime(&disconnect_t));
                 clinets[i] = -1;
