@@ -1,5 +1,5 @@
 #include "header_cli.h"
-
+#include <uuid/uuid.h>
 
 int main(int argc, char* argv[])
     {
