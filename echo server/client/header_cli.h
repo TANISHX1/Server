@@ -8,6 +8,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <uuid/uuid.h>
+#define UUIDE_FILE "client_uuid.txt"
 
 // Style macros
 #define RESET       "\033[0m"
@@ -62,14 +64,15 @@
 
 // custom Macros
 #define MSG_SEPRATE "!?!?"
-#define MSG_SEPRATE_LEN strlen(MSG_SEPRATE)
-#define META_D_BUFFER 256
+#define MSG_SEP_LEN strlen(MSG_SEPRATE)
+#define META_D_BUFFER_SIZE 256
 
 // data structures
 typedef struct client_info {
     char* client_name;
     char* server_name;
     char* cli_display_color;
+    char* cli_uuid;
 
     }client_info;
 
@@ -104,56 +107,134 @@ bool quit_check(char* line)
 void color_pick(client_info** cli_, int num)
     {
     switch (num)
-    {
+        {
         case 0:
             (*cli_)->cli_display_color = strdup(FG_BBLUE);
             break;
-    
+
         case 1:
             (*cli_)->cli_display_color = strdup(FG_BCYAN);
             break;
-    
+
         case 2:
             (*cli_)->cli_display_color = strdup(FG_BGREEN);
             break;
-    
+
         case 3:
             (*cli_)->cli_display_color = strdup(FG_BMAGENTA);
             break;
-    
+
         case 4:
             (*cli_)->cli_display_color = strdup(FG_BRED);
             break;
-    
+
         case 5:
             (*cli_)->cli_display_color = strdup(FG_BWHITE);
             break;
-    
+
         case 6:
             (*cli_)->cli_display_color = strdup(FG_BYELLOW);
             break;
-    
+
         default:
             (*cli_)->cli_display_color = strdup(FG_BBLACK);
             break;
-    }
+        }
     }
 
-    // break meta_data_msg into particular sub_msg
+// break meta_data_msg into particular sub_msg
 
-bool break_meta_d(client_info ** cli__, char* buffer)
+bool break_meta_d(client_info** cli__, char* buffer)
     {
     char* ptr;
     short int size;
-    if (ptr = strstr(buffer, MSG_SEPRATE)) {
+    if ((ptr = strstr(buffer, MSG_SEPRATE))!= NULL) {
         size = ptr - buffer;
         // 1.name filling
         (*cli__)->server_name = strndup(buffer, size);
-        ptr = ptr + MSG_SEPRATE_LEN;
+        ptr = ptr + MSG_SEP_LEN ;
         // 2. color_code filling
         int c_code = *ptr - '0';
         color_pick(&(*cli__), c_code);
         return true;
         }
     return false;
+    }
+
+
+void generate_store_uuid(char* uuid_str)
+    {
+    uuid_t uuid;
+    uuid_generate_random(uuid);
+    uuid_unparse_lower(uuid, uuid_str);
+    FILE* fptr = fopen(UUIDE_FILE, "w");
+    if (!fptr) {
+        perror("Failed to open UUID file for writing");
+        exit(EXIT_FAILURE);
+        }
+    fprintf(fptr, "%s", uuid_str);
+    fclose(fptr);
+    }
+
+int read_uuid(char* uuid_str)
+    {
+    FILE* file = fopen(UUIDE_FILE, "r");
+    if (!file) {
+        return 0; //UUID Does not exist
+        }
+    if (fgets(uuid_str, 37, file) == NULL) {
+        fclose(file);
+        return 0; //failed to read uuid
+        }
+    // remove /n 
+    uuid_str[strcspn(uuid_str, " ")] = 0;
+    fclose(file);
+    return 1;
+    }
+
+void uuid_fetch(char* cli__uuid, bool debug)
+    {
+    if (!read_uuid(cli__uuid))
+        {
+        generate_store_uuid(cli__uuid);
+        if (debug) {
+            printf("Generated uuid : %s\n", cli__uuid);
+            }
+
+        }
+    else {
+        if (debug) {
+            printf("Stored uuid : %s\n", cli__uuid);
+            }
+        }
+    }
+
+bool combine_msg(char* msg, char* new_msg)
+    {
+    // sequence : 1.client name is already present in msg [we have to remove the \n from buffer]
+    // 2.MSG_SEPERATE + uuid of client
+    /*
+    NOTE: 1. fgets , if string (str) string_len is n(len is returned by strlen ) .
+             then the str[n] == '\n' and str[n+1] == '\0'  */
+
+    int size_dest = strlen(msg), size_src = strlen(new_msg);
+    msg[size_dest - 1] = '\0';
+    if (size_dest + size_src + 1 < META_D_BUFFER_SIZE) {
+        strcat(msg, MSG_SEPRATE);
+        strcat(msg, new_msg);
+        printf("meta buffer : %s\n", msg);
+
+        return true;
+        }
+    //Final sequence : clinet name + MSG_SEPERATE + uuid  
+    return false;
+    }
+
+void free_client(client_info* client)
+    {
+    free(client->client_name);
+    free(client->server_name);
+    free(client->cli_uuid);
+    free(client->cli_display_color);
+    free(client);
     }
