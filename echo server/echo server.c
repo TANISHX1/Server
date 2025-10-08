@@ -197,13 +197,14 @@ meaning a new connection is available.*/
                         // send and recieve meta data or client
                         client_info* client_info_t = (client_info*)malloc(sizeof(client_info));
                         clinet_struct[cli_fd] = client_info_t;
-                        char addr_buf[30];
+                        char addr_buf[META_BUFFER_SIZE];
                         ssize_t n;
                         if ((n = recv(cli_fd, addr_buf, sizeof(addr_buf), 0)) > 0)
                             {
-                            addr_buf[n] = '\0';
-                            client_info_t->cli_name = strdup(addr_buf);
+                            addr_buf[n ] = '\0';
+                            break_meta_d(&client_info_t, addr_buf);
                             printf("Client_name:%s\n", client_info_t->cli_name);
+                            printf("Clinet uuid key: %s\n", client_info_t->cli_uuid);
                             // fflush(stdout);
                             }
                         else {
@@ -221,12 +222,19 @@ meaning a new connection is available.*/
                             }
                         meta_buffer_refresh(meta_d_Buffer, s_name_len);
 
-                        snprintf(addr_buf, sizeof(addr_buf), "client_files/%s", ip);
+                        // file creation part 
+                        // 1. client_files/<client_uuid>
+                        snprintf(addr_buf, sizeof(addr_buf), "client_files/%s", client_info_t->cli_uuid);
                         char* cli_directory_path = strdup(addr_buf);
-                        if (create_directory(addr_buf) == -1)
-                            {
-                            exit(-1);
-                            }
+                        if (create_directory(addr_buf) == -1) { exit(-1); }
+                            
+                        // 2. client_files/<client_uuid>/<clinet_ip>
+                        snprintf(addr_buf, sizeof(addr_buf), "%s/%s", cli_directory_path, ip);
+                        if (create_directory(addr_buf) == -1) { exit(-1); }
+                        free(cli_directory_path);
+                        cli_directory_path = strdup(addr_buf);
+                        
+                        // 3. client_files/<client_uuid>/<clinet_ip>/cli_<no.of file>.txt
                         snprintf(addr_buf, sizeof(addr_buf), "%s/cli_%d.txt", cli_directory_path, file_count++);
                         free(cli_directory_path);
                         f_ptr[i] = fopen(addr_buf, "w");
