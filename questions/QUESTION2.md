@@ -90,8 +90,8 @@ if (bytes_read == 0) {
 
 ```
 Server with select()
-┌─────────────────────────────────┐
-│  Client Array: [C1,C2,C3,...C10]│
+┌──────────────────────────────────┐
+│  Client Array: [C1,C2,C3,...C10] │
 │                                  │
 │  C3 sends: "Hello"               │
 │      ↓                           │
@@ -104,7 +104,7 @@ Server with select()
 │    send to C4 ✓                  │
 │    ...                           │
 │    send to C10 ✓                 │
-└─────────────────────────────────┘
+└──────────────────────────────────┘
 ```
 
 **Critical Broadcasting Logic:**
