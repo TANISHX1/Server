@@ -2,6 +2,7 @@
 
 **Date:** October 09, 2025  
 **Topics:** Socket Programming, Client Disconnection, Select Multiplexing, Broadcasting, TCP Buffering
+**NOTE:** there is chances of misinformation because answers/reasons are AI driven 
 ---
 
 ## **Table of Contents**
