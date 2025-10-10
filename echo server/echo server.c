@@ -1,5 +1,6 @@
 
 #include "header.h"
+#include "wrapper.h"
 
 #ifndef FD_SETSIZE
 #define FD_SETSIZE 1024
@@ -83,6 +84,7 @@ int main(int argc, char* argv[])
 
     uint16_t port = (uint16_t)atoi(argv[1]);
     int listen_fd = make_listen_socket(port);
+    // to track active client [stores client file descriptor]
     int clinets[FD_SETSIZE];
 
     //client time 
@@ -123,7 +125,10 @@ int main(int argc, char* argv[])
     for (int i = 0;i < FD_SETSIZE;i++) {
         clinets[i] = -1;
         cli_files[i] = -1;
+        f_ptr[i] = NULL;
+        clinet_struct[i] = NULL;
         }
+
     printf("%sListening to port %u (fd=%d)\n%s", FG_BGREEN, (unsigned)port, listen_fd, RESET);
     //event loop
     while (1) {
@@ -190,18 +195,18 @@ meaning a new connection is available.*/
                 int placed = 0;
                 for (int i = 0; i < FD_SETSIZE;i++) {
                     if (clinets[i] == -1) {
-                        clinets[i] = cli_fd;
-                        placed = 1;
+                        clinets[i]   = cli_fd;
                         cli_files[i] = cli_fd;
+                        placed = 1;
 
                         // send and recieve meta data or client
                         client_info* client_info_t = (client_info*)malloc(sizeof(client_info));
-                        clinet_struct[cli_fd] = client_info_t;
+                        clinet_struct[i] = client_info_t;
                         char addr_buf[META_BUFFER_SIZE];
                         ssize_t n;
                         if ((n = recv(cli_fd, addr_buf, sizeof(addr_buf), 0)) > 0)
                             {
-                            addr_buf[n ] = '\0';
+                            addr_buf[n] = '\0';
                             break_meta_d(&client_info_t, addr_buf);
                             printf("Client_name:%s\n", client_info_t->cli_name);
                             printf("Clinet uuid key: %s\n", client_info_t->cli_uuid);
@@ -222,18 +227,18 @@ meaning a new connection is available.*/
                             }
                         meta_buffer_refresh(meta_d_Buffer, s_name_len);
 
-                        // file creation part 
+                        // ------------file creation part------------- 
                         // 1. client_files/<client_uuid>
                         snprintf(addr_buf, sizeof(addr_buf), "client_files/%s", client_info_t->cli_uuid);
                         char* cli_directory_path = strdup(addr_buf);
-                        if (create_directory(addr_buf) == -1) { exit(-1); }
-                            
+                        if (create_directory(addr_buf, input) == -1) { exit(-1); }
+
                         // 2. client_files/<client_uuid>/<clinet_ip>
                         snprintf(addr_buf, sizeof(addr_buf), "%s/%s", cli_directory_path, ip);
-                        if (create_directory(addr_buf) == -1) { exit(-1); }
+                        if (create_directory(addr_buf, input) == -1) { exit(-1); }
                         free(cli_directory_path);
                         cli_directory_path = strdup(addr_buf);
-                        
+
                         // 3. client_files/<client_uuid>/<clinet_ip>/cli_<no.of file>.txt
                         snprintf(addr_buf, sizeof(addr_buf), "%s/cli_%d.txt", cli_directory_path, file_count++);
                         free(cli_directory_path);
@@ -245,7 +250,7 @@ meaning a new connection is available.*/
                 //if max client limit reached
                 if (!placed) {
                     fprintf(stderr, "%sToo many clients; closing fd=%d%s", FG_RED, cli_fd, RESET);
-                    close_client(clinet_struct[cli_fd], input);
+                    close_client(NULL, cli_fd,input);
                     }
                 //EINTR means , sys call interrupted by signal
                 else if (errno != EINTR)
@@ -266,7 +271,7 @@ meaning a new connection is available.*/
                 continue;
                 }
             // In your read section, add detailed debugging:
-            char buf[4096];
+            char buf[40960];
             ssize_t n = read(fd, buf, sizeof(buf));
 
             //debug code , tells actually what we are recived from client in hexhump format
@@ -314,11 +319,13 @@ meaning a new connection is available.*/
                     disconnect_t = time(NULL);
                     printf("\n[%sClinet Disconnected%s] %s", FG_RED, RESET, ctime(&disconnect_t));
                     }
-                close_client(clinet_struct[fd], input);
+                close_client(clinet_struct[i],fd, input);
 
                 clinets[i] = -1;
                 cli_files[i] = -1;
-                fclose(f_ptr[i]);
+                file_close(f_ptr[i],input);
+                // add f+closee f(x)
+                clinet_struct[i] = NULL;
                 continue;
                 }
 
@@ -327,19 +334,30 @@ meaning a new connection is available.*/
                 buf[n] = '\0';  // Add null terminator
                 }
             fprintf(f_ptr[file_number], "%s", buf);
-            // fwrite(buf, 1, n, f_ptr[file_number]);
-            ssize_t m = write(fd, buf, (size_t)n);
 
-            if (m < 0) {
-                fprintf(stderr, "[%sError%s]", FG_BRED, RESET);
-                perror("Write");
-                close_client(clinet_struct[fd], input);
+            // broadcasting algorithm
+            for (int j = 0;j < 20;j++) {
+                int cli_fd = clinets[j];
+                if (cli_fd != -1) {
+                    printf("client[%d] = %d\t", j, clinets[j]);
+                    ssize_t m = send(cli_fd, buf, n, 0);
+                    // ssize_t m = write(cli_fd, buf, (size_t)n);
+                    printf("written ;%zd bytes\n", m);
+                    if (m < 0) {
+                        fprintf(stderr, "[%sError%s]", FG_BRED, RESET);
+                        perror("Write");
+                        close_client(clinet_struct[j],cli_fd, input);
 
-                disconnect_t = time(NULL);
-                printf("\n[%sClinet Disconnected%s] %s", FG_RED, RESET, ctime(&disconnect_t));
-                clinets[i] = -1;
+                        disconnect_t = time(NULL);
+                        printf("\n[%sClinet Disconnected%s] %s", FG_RED, RESET, ctime(&disconnect_t));
+                        clinets[j] = -1;
+                        file_close(f_ptr[j],input);
+                        clinet_struct[j] = NULL;
+                        }
+                    }
                 }
             }
+        
         }
     //closing listening socket
     close(listen_fd);

@@ -78,7 +78,7 @@ Meanings of return in directory_create_function :
     return 1  : Success [ Directory Created]
 */
 
-int create_directory(const char* path)
+int create_directory(const char* path,int debug)
     {
     struct stat st = { 0 };
 
@@ -95,7 +95,9 @@ int create_directory(const char* path)
     else {
         // Check if it's actually a directory
         if (S_ISDIR(st.st_mode)) {
-            printf("Directory '%s' already exists.", path);
+            if (debug == 3) {
+                printf("Directory '%s' already exists.", path);
+                }
             return 0; // Directory already exists
             }
         else {
@@ -162,10 +164,10 @@ void meta_buffer_refresh(char* buffer, int len)
     }
 
 // free the client info when client disconnects
-void close_client(void* cli_, int debug)
+void close_client(void* cli_,int fd, int debug)
     {
     client_info* clinet = (client_info*)cli_;
-    close(clinet->cli_id);
+    close(fd);
     free(clinet->cli_name);
     free(clinet->cli_uuid);
     free(clinet);
