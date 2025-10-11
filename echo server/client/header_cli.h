@@ -9,6 +9,10 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <uuid/uuid.h>
+#include <pthread.h>
+#include <readline/readline.h> //readline is used for better GUI 
+#include <readline/history.h>
+#include <fcntl.h>    // used for file control 
 #define UUIDE_FILE "client_uuid.txt"
 
 // Style macros
@@ -67,12 +71,19 @@
 #define MSG_SEP_LEN strlen(MSG_SEPRATE)
 #define META_D_BUFFER_SIZE 256
 
+// -------------------global variable--------------------
+bool clinet_active = true;
+bool debug = false;
+static pthread_mutex_t display_lck = PTHREAD_MUTEX_INITIALIZER;
+// ------------------------------------------------------
+
 // data structures
 typedef struct client_info {
     char* client_name;
     char* server_name;
     char* cli_display_color;
     char* cli_uuid;
+    int sock;
 
     }client_info;
 
@@ -100,7 +111,7 @@ static int send_all(int sock, const void* buf, size_t len)
 // check quit
 bool quit_check(char* line)
     {
-    return (strcmp(line, "quit\n") == 0);
+    return (strcmp(line, "quit") == 0 || strcmp(line, "exit") == 0);
     }
 
 // display color for client
@@ -209,7 +220,7 @@ void uuid_fetch(char* cli__uuid, bool debug)
         }
     }
 
-bool combine_msg(char* msg, char* new_msg)
+bool combine_msg(char* msg, char* new_msg, bool debug)
     {
     // sequence : 1.client name is already present in msg [we have to remove the \n from buffer]
     // 2.MSG_SEPERATE + uuid of client
@@ -222,7 +233,9 @@ bool combine_msg(char* msg, char* new_msg)
     if (size_dest + size_src + 1 < META_D_BUFFER_SIZE) {
         strcat(msg, MSG_SEPRATE);
         strcat(msg, new_msg);
-        printf("meta buffer : %s\n", msg);
+        if (debug) {
+            printf("meta buffer : %s\n", msg);
+            }
 
         return true;
         }
@@ -232,9 +245,19 @@ bool combine_msg(char* msg, char* new_msg)
 
 void free_client(client_info* client)
     {
-    free(client->client_name);
-    free(client->server_name);
-    free(client->cli_uuid);
-    free(client->cli_display_color);
-    free(client);
+    if (client->cli_display_color) {
+        free(client->cli_display_color);
+        }
+    if (client->client_name) {
+        free(client->client_name);
+        }
+    if (client->server_name) {
+        free(client->server_name);
+        }
+    if (client->cli_uuid) {
+        free(client->cli_uuid); 
+        }
+    if (client) {
+        free(client);
+        }
     }
