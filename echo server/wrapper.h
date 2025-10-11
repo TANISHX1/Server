@@ -7,6 +7,12 @@ void file_close(FILE** fptr ,int debug)
     if (fptr !=NULL && *fptr !=NULL) {
         fclose(*fptr);
         *fptr = NULL;
+        if (debug ==3) {
+            puts("file closed...");
+        }
+        }
+    else {
+        puts("File pointer is Invalid");
+        }
     }
-}
 #endif
