@@ -243,6 +243,11 @@ meaning a new connection is available.*/
                         snprintf(addr_buf, sizeof(addr_buf), "%s/cli_%d.txt", cli_directory_path, file_count++);
                         free(cli_directory_path);
                         f_ptr[i] = fopen(addr_buf, "w");
+                        
+                        if (!f_ptr[i]) {
+                            perror("Error opening file");
+                            return 1;
+                            }
                         break;
                         }
                     }
@@ -323,7 +328,7 @@ meaning a new connection is available.*/
 
                 clinets[i] = -1;
                 cli_files[i] = -1;
-                file_close(f_ptr[i],input);
+                file_close(&f_ptr[i],input);
                 // add f+closee f(x)
                 clinet_struct[i] = NULL;
                 continue;
@@ -338,20 +343,20 @@ meaning a new connection is available.*/
             // broadcasting algorithm
             for (int j = 0;j < 20;j++) {
                 int cli_fd = clinets[j];
-                if (cli_fd != -1) {
+                if (cli_fd != -1 && cli_fd !=fd) {
                     printf("client[%d] = %d\t", j, clinets[j]);
                     ssize_t m = send(cli_fd, buf, n, 0);
-                    // ssize_t m = write(cli_fd, buf, (size_t)n);
+                
                     printf("written ;%zd bytes\n", m);
                     if (m < 0) {
                         fprintf(stderr, "[%sError%s]", FG_BRED, RESET);
-                        perror("Write");
+                        perror("Send");
                         close_client(clinet_struct[j],cli_fd, input);
 
                         disconnect_t = time(NULL);
                         printf("\n[%sClinet Disconnected%s] %s", FG_RED, RESET, ctime(&disconnect_t));
                         clinets[j] = -1;
-                        file_close(f_ptr[j],input);
+                        file_close(&f_ptr[j],input);
                         clinet_struct[j] = NULL;
                         }
                     }

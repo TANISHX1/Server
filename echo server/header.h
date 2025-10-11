@@ -122,10 +122,8 @@ int random_int()
 bool combine_msg(char* msg, char* new_msg)
     {
     // sequence : 1.server name is already present in msg
-    // 2.MSG_SEPERATE + clolor_code
-    /* BUGs:-
-it is apppending the color code of , when each time clinet connect. fix this
-    */
+    // 2.MSG_SEPERATE + (assume other msg) clolor_code
+   
     int size_dest = strlen(msg), size_src = strlen(new_msg);
 
     if (size_dest + size_src + 1 < META_BUFFER_SIZE) {
