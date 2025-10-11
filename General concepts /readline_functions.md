@@ -1,7 +1,5 @@
 # How GNU Readline Functions Work
 
-**NOTE:** there is chances of misinformation because this is  AI Generated output
-
 ## Table of Contents
 1. [Overview](#overview)
 2. [Core Data Structures](#core-data-structures)
@@ -728,5 +726,7 @@ char* get_current_input(void) {
 - **Examples**: `/usr/share/doc/readline/examples/` (on most Linux systems)
 
 ---
+**NOTE:** there is chances of misinformation because this is  AI Generated output
+
 
 *Last Updated: October 2025*
